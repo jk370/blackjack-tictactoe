@@ -1,10 +1,10 @@
 class Agent:
     def __init__(self, environment, player):
-        '''Initialises environment and player'''
+        '''Initializes environment and player'''
         self.environment = environment
         self.player = player
         self.cumulative_reward = [0]
-        self.average_reward = [0]
+        self.episode_reward = [0]
         
     def set_environment(self, environment):
         '''Sets environment'''
@@ -18,23 +18,24 @@ class Agent:
         '''Returns cumulative reward array for player'''
         return self.cumulative_reward
     
-    def get_average_reward(self):
+    def get_episode_reward(self):
         '''Returns average reward array for player'''
-        return self.average_reward
+        return self.episode_reward
     
     def add_cumulative_reward(self, reward):
         '''Appends cumulative reward to player cumulative reward history'''
         self.cumulative_reward.append(reward)
         
-    def add_average_reward(self, reward):
+    def add_episode_reward(self, reward):
         '''Appends average reward to player average reward history'''
-        self.average_reward.append(reward)
+        self.episode_reward.append(reward)
         
     def random_action(self):
         ''' Chooses a random action from those available'''
         available_actions = self.environment.get_available_actions()
         move = np.random.choice(available_actions)
         return move
+		
 		
 class Random_Agent(Agent):
     def __init__(self, environment, player):
@@ -45,37 +46,27 @@ class Random_Agent(Agent):
         '''Returns the first legal random move'''
         return self.random_action()
 		
-class Q_Agent(Agent):
+		
+class Learning_Agent(Agent):
     def __init__(self, environment, player, epsilon = 0.1, alpha = 0.1, gamma = 1):
-        ''' Initialises all learning variables and Q table'''
+        ''' Initializes all learning variables and Q table'''
         # Set up initial variables and learning tables
-        super(Q_Agent, self).__init__(environment, player)
+        super(Learning_Agent, self).__init__(environment, player)
         self.epsilon = epsilon
         self.alpha = alpha
         self.gamma = gamma
         self.Q = {}
         
-        # Knowledge of historic actions (due to turn-based game) - intialise first state-action
-        self.last_state = self.environment.get_initial_state()
-        self.last_action = 0
-        key = (''.join(self.last_state), self.last_action)
-        self.Q[key] = 0
-    
-    def get_last_turn(self):
-        '''Returns the last state and action'''
-        return (self.last_state, self.last_action)
-    
-    def set_last_turn(self, state, action):
-        '''Saves the last turn in the memory'''
-        self.last_state = state
-        self.last_action = action
+    def get_Q(self):
+        '''Returns Q table for the agent'''
+        return self.Q
         
     def set_epsilon(self, epsilon):
         '''Sets the value of epsilon'''
         self.epsilon = epsilon
-    
+        
     def find_move(self):
-        '''Chooses to exploit Q table, or explore'''
+        '''Chooses to exploit Q table, or explore (e-greedy)'''
         # Random action to explore, probability depends on epsilon
         chance = np.random.uniform(0,1)
         if (chance < self.epsilon):
@@ -89,7 +80,7 @@ class Q_Agent(Agent):
         
         # Otherwise, try to be greedy
         else:
-            # Initialise state and action values in Q table if not found
+            # Initialize state and action values in Q table if not found
             state_t = ''.join(self.environment.get_state())
             available_actions = self.environment.get_available_actions()
             # Discover available states
@@ -109,12 +100,19 @@ class Q_Agent(Agent):
                     
             max_action = np.random.choice(max_actions)
             return max_action
+			
+			
+class Q_Agent(Learning_Agent):
+    def __init__(self, environment, player, epsilon = 0.1, alpha = 0.1, gamma = 1):
+        ''' Initializes all learning variables and Q table'''
+        super(Q_Agent, self).__init__(environment, player, epsilon, alpha, gamma)
     
-    def learn(self, old_state, action_t, new_state, reward):
+    def learn(self, old_state, action_t, reward, new_state, new_action):
         '''Updates Q table with value corresponding to latest state-action-reward'''
         available_actions = self.environment.get_available_actions()
         old_state = ''.join(old_state)
         new_state = ''.join(new_state)
+        update_key = (old_state, action_t)
         
         # Discover new state-actions
         for action in available_actions:
@@ -126,7 +124,28 @@ class Q_Agent(Agent):
         if self.environment.check_end(self.player):
             factor = 0
         else:
-            factor = max([self.Q[(new_state, action)] for action in available_actions])
+            factor = self.gamma * max([self.Q[(new_state, action)] for action in available_actions])
         
         # Amend Q values
-        self.Q[(old_state, action_t)] = ((1-self.alpha) * self.Q[(old_state, action_t)]) + (self.alpha * (reward + factor))
+        self.Q[update_key] = self.Q[update_key] + (self.alpha * (reward + factor - self.Q[update_key]))
+		
+		
+class Sarsa_Agent(Learning_Agent):
+    def __init__(self, environment, player, epsilon = 0.1, alpha = 0.1, gamma = 1):
+        ''' Initializes all learning variables and Q table'''
+        super(Sarsa_Agent, self).__init__(environment, player, epsilon, alpha, gamma)
+    
+    def learn(self, old_state, action_t, reward, new_state, new_action):
+        '''Updates Q table with value corresponding to latest state-action-reward'''
+        old_state = ''.join(old_state)
+        new_state = ''.join(new_state)
+        key = (old_state, action_t)
+        new_key = (new_state, new_action)
+        
+        # Discover new state if not previously found
+        if new_key not in self.Q:
+            self.Q[new_key] = 0
+            
+        # Amend Q values
+        factor = (self.gamma * self.Q[new_key]) - self.Q[key]
+        self.Q[key] = self.Q[key] + (self.alpha * (reward + factor))

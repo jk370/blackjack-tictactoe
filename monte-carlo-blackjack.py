@@ -14,20 +14,19 @@ def policy(player_sum):
     
 
 def initialise_V():
-    '''Initialise all state-values for blackjack'''
+    '''Initialize all state-values for blackjack'''
     for player in range(12,22):
         for dealer in range(1,11):
             for ace in range(0,2):
                 v[(player, dealer, ace)] = 0
 
-def evaluate_policy():
-    '''Evaluates the policy by playing episodes of blackjack (MCPE) and computes state values (v)'''
-    # Initialise variable to hold all states with returns and times visited
+def evaluate_policy(total_episodes = 50000):
+    '''Evalutes the policy by playing episodes of blackjack'''
+    # Initialize variable to hold all states with returns and times visited
     all_states_visited = {}
-    total_episodes = 50000
     
     # Perform a high number of episodes
-    for game in range(total_episodes):
+    for episode in range(total_episodes):
         # Initialize game
         env = blackjack.Blackjack(verbose=False)
         new_state, reward = env.make_step(action="reset")
@@ -59,11 +58,11 @@ def evaluate_policy():
 		
 def get_state_value(s, v):
 	''' Returns state value of given state'''
-    value_of_s = v[s]
-    return value_of_s
-        
+    state = tuple(s)
+    value_of_s = v[state]
+    return value_of_s 
 
 initialise_V()
-evaluate_policy()
+evaluate_policy(total_episodes = 50000)
 #for key, value in v.items():
     #print("State:", key, "\tValue: %0.3f" % value)

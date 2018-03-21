@@ -51,7 +51,7 @@ class TicTacToe:
             print("Not a valid move")
     
     def check_end(self, player):
-        '''Checks if the game is over'''
+        '''Checks if the episode is over'''
         end = self.check_lines(player) or self.check_diag(player) or self.check_draw(player)
         return end
     
@@ -95,7 +95,7 @@ class TicTacToe:
         return (full and not win)
                 
     def get_rewards(self, player):
-        '''Returns a dictionary of reward for each player at the end of the game'''
+        '''Returns a dictionary of reward for each player at the end of the episode'''
         episode_rewards = {
             "O": 0,
             "X": 0
